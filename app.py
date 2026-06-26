@@ -1,9 +1,15 @@
 ### IMPORTAR LAS LIBRERIAS NECESARIAS PARA EL CHAT
-
 import streamlit as st
 import google.generativeai as genai
 from thefuzz import process
 import os
+
+### CONFIGURAR EL ENTORNO GRAFICO DEL CHATBOT (Debe ir antes de cualquier elemento visual)
+st.set_page_config(
+    page_title="MUNDIALITO - Asistente IA para el grupo G66",
+    page_icon="🤓",
+    layout="wide"
+)
 
 ###ESTILOS PARA EL CHATBOT
 st.markdown("""
@@ -24,51 +30,62 @@ st.markdown("""
     }
     h1, h2, h3 { color: #0c2340; }
     </style>
+""", unsafe_allow_html=True)
 
-""",unsafe_allow_html=True)
-
-
-### CONFIGURAR EL ENTORNO GRAFICO DEL CHATBOT
-st.set_page_config(
-    page_title="MUNDIALITO - Asistente IA para el grupo G66",
-    page_icon="🤓",
-    layout="wide"
-)
+### CLAVE DE API QUEMADA
+API_KEY_QUEMADA = "AIzaSyBl4khdoHVr0sQPKWdw9IYWz4Q_9RNbQO0"
 
 ###LOGICA DEL CHATBOT - LAS REGLAS
-
 CONOCIMIENTO_ESTATICO = {
-    "hola":"¡Hola! Soy tu asistente CREDIUNIÓN. ¿Cómo puedo ayudarte?",
-    "informacion":"Nuestros servicios están al alcance de todos",
-    "personal":"CREDIUNIÓN cuenta con una planta de personal altamente capacitado y con excelente sentido de pertenencia",
-    "horarios":"Atendemos de lunes a viernes en horario de oficina",
+    "hola": "¡Hola! Soy tu asistente CREDIUNIÓN. ¿Cómo puedo ayudarte?",
+    "informacion": "Nuestros servicios están al alcance de todos",
+    "personal": "CREDIUNIÓN cuenta con una planta de personal altamente capacitado y con excelente sentido de pertenencia",
+    "horarios": "Atendemos de lunes a viernes en horario de oficina",
     "contacto": "Puedes contactarnos a través de nuestra línea telefónica 018000-XXX-XXX o al correo info@crediunion.com",
     "ubicacion": "Nuestras oficinas principales están en la Calle 112 # 10-50, Bogotá.",
-    "chao":"Fue un placer ayudarte"
+    "chao": "Fue un placer ayudarte"
 }
 
 INFO_CREDITOS = {
-    "libranzas":"Tenemos convenios con tu empresa para créditos por libranza, llena el formular para consultar tu estado financiero",
-    "consumo":"Ofrecemos créditos de libre inversión",
-    "finaciacion":"Financiamos tus proyecto de construcción y/o estudios",
+    "libranzas": "Tenemos convenios con tu empresa para créditos por libranza, llena el formulario para consultar tu estado financiero",
+    "consumo": "Ofrecemos créditos de libre inversión",
+    "finaciacion": "Financiamos tus proyecto de construcción y/o estudios",
     "hipotecario": "Ofrecemos créditos hipotecarios para la compra de vivienda nueva o usada.",
     "vehiculo": "Financiamos la compra de tu vehículo con las mejores tasas."
 }
 
 ###DIVIDIMOS EL ESPACIO EN EL SITIO WEB PARA ORGANIZAR EL CONTENIDO DEL CHATBOT
-colConfiguracion, colChat = st.columns([1,2],gap="large")
+colConfiguracion, colChat = st.columns([1, 2], gap="large")
 
-###CONTENIDO DE LAS COLUMNAS - CONFIGURACIÓN DE LAS CREDENCIALES
+###COLUMNA 1 - FORMULARIO PARA CLIENTE POTENCIAL
 with colConfiguracion:
     st.image("logo.jpg")
-    st.subheader("Ajustes ⚙️")
-    clave_api = st.text_input("Introduce la clave de API",type="password")
+    st.subheader("Registro de Cliente Potencial 📝")
+    
+    # Formulario para capturar los datos
+    with st.form("form_cliente"):
+        nombre = st.text_input("Nombre completo:")
+        correo = st.text_input("Correo electrónico:")
+        telefono = st.text_input("Teléfono / WhatsApp:")
+        tipo_credito = st.selectbox(
+            "Crédito de interés:",
+            ["Libranza", "Libre Inversión", "Hipotecario", "Vehículo", "Educativo/Construcción"]
+        )
+        
+        # Botón de envío del formulario
+        enviado = st.form_submit_button("Enviar Datos")
+        if enviado:
+            if nombre and correo and telefono:
+                st.success(f"¡Gracias, {nombre}! Un asesor se contactará contigo pronto.")
+                # Aquí puedes añadir la lógica para guardar en una base de datos o archivo excel
+            else:
+                st.warning("Por favor, completa todos los campos del formulario.")
 
 ###COLUMNA 2 - ESPACIO DEL CHAT PARA INTERACCION CON EL CLIENTE O USUARIO
 with colChat:
     st.title("CHATBOT - MUNDIALITO 🤓")
 
-    if "messages"not in st.session_state:
+    if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
     ###HISTORIAL DEL CHAT
@@ -77,28 +94,31 @@ with colChat:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
+                
     ###ENTRADA DEL USUARIO
-    if prompt:=st.chat_input("Escribe tu pregunta aqui."):
-        st.session_state.messages.append({"role":"user","content":prompt})
+    if prompt := st.chat_input("Escribe tu pregunta aqui."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
         with chat_container:
             with st.chat_message("user"):
                 st.markdown(prompt)
-    ###RESPUESTA DEL CHATBOT
-        opciones =list(CONOCIMIENTO_ESTATICO.keys())+list(INFO_CREDITOS.keys())
-        mejor_llave,puntaje=process.extractOne(prompt.lower(),opciones)
+                
+        ###RESPUESTA DEL CHATBOT
+        opciones = list(CONOCIMIENTO_ESTATICO.keys()) + list(INFO_CREDITOS.keys())
+        mejor_llave, puntaje = process.extractOne(prompt.lower(), opciones)
 
         with chat_container:
             with st.chat_message("assistant"):
-                if puntaje>70:
-                    respuesta=CONOCIMIENTO_ESTATICO.get(mejor_llave) or INFO_CREDITOS.get(mejor_llave)
+                if puntaje > 70:
+                    respuesta = CONOCIMIENTO_ESTATICO.get(mejor_llave) or INFO_CREDITOS.get(mejor_llave)
                 else:
                     try:
-                        genai.configure(api_key="AIzaSyBl4khdoHVr0sQPKWdw9IYWz4Q_9RNbQO0")
-                        model=genai.GenerativeModel("gemini-2.5-flash")
-                        response=model.generate_content(prompt)
+                        # Configuración usando la clave quemada
+                        genai.configure(api_key=API_KEY_QUEMADA)
+                        model = genai.GenerativeModel("gemini-2.5-flash")
+                        response = model.generate_content(prompt)
                         respuesta = response.text
                     except Exception as e:
-                        respuesta=f"Error G66: {e}"
+                        respuesta = f"Error G66: {e}"
 
                 st.markdown(respuesta)
-                st.session_state.messages.append({"role":"assistant","content":respuesta})
+                st.session_state.messages.append({"role": "assistant", "content": respuesta})
